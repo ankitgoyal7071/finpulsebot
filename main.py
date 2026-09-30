@@ -67,14 +67,13 @@ def mini_app_home():
             const username = user.username ? "@" + user.username : "@Optraderr";
             document.getElementById('top-username').innerText = username;
 
-            // Persistent Watchlist & Settings State
             let watchlist = JSON.parse(localStorage.getItem('finpulse_watchlist')) || [];
             let settingsState = JSON.parse(localStorage.getItem('finpulse_settings')) || { allAnnouncements: true, autoAdd: true };
             
             let currentTab = 'watchlist';
             let currentFilter = 'all';
 
-            // Comprehensive Stock & Results Database (Expanded)
+            // Real Listed Companies Results Calendar
             const allResults = [
                 { name: "BF Utilities Ltd", exchange: "NSE", code: "BFUTILITIE", bse: "532430", date: "Wed, 30 Sept", type: "today", period: "Q1 FY26-27" },
                 { name: "Globe Commercials Ltd", exchange: "BSE", code: "GLOBE", bse: "540266", date: "Wed, 30 Sept", type: "today", period: "Q1 FY26-27" },
@@ -85,11 +84,10 @@ def mini_app_home():
                 { name: "Infosys Limited", exchange: "NSE", code: "INFY", bse: "500209", date: "Mon, 5 Oct", type: "upcoming", period: "Q2 FY26-27" },
                 { name: "HDFC Bank Limited", exchange: "NSE", code: "HDFCBANK", bse: "500180", date: "Tue, 6 Oct", type: "upcoming", period: "Q2 FY26-27" },
                 { name: "State Bank of India", exchange: "NSE", code: "SBIN", bse: "500112", date: "Wed, 7 Oct", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "ITC Limited", exchange: "NSE", code: "ITC", bse: "500875", date: "Thu, 8 Oct", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "Larsen & Toubro Ltd", exchange: "NSE", code: "LT", bse: "500510", date: "Fri, 9 Oct", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "Bharti Airtel Ltd", exchange: "NSE", code: "BHARTIARTL", bse: "532454", date: "Mon, 12 Oct", type: "upcoming", period: "Q2 FY26-27" }
+                { name: "ITC Limited", exchange: "NSE", code: "ITC", bse: "500875", date: "Thu, 8 Oct", type: "upcoming", period: "Q2 FY26-27" }
             ];
 
+            // Official Listed Instruments Database (NSE/BSE)
             const allInstruments = [
                 { name: "Tata Consultancy Services Ltd", symbol: "TCS", bse: "532540", isin: "INE467B01029" },
                 { name: "Reliance Industries Ltd", symbol: "RELIANCE", bse: "500325", isin: "INE002A01018" },
@@ -109,8 +107,8 @@ def mini_app_home():
                 { name: "Asian Paints Limited", symbol: "ASIANPAINT", bse: "500820", isin: "INE021A01026" },
                 { name: "HCL Technologies Ltd", symbol: "HCLTECH", bse: "532281", isin: "INE860A01027" },
                 { name: "Maruti Suzuki India Ltd", symbol: "MARUTI", bse: "532500", isin: "INE585B01010" },
-                { name: "Sun Pharmaceutical Industries Ltd", symbol: "SUNPHARMA", bse: "524715", isin: "INE044A01036" },
-                { name: "Titan Company Limited", symbol: "TITAN", bse: "500114", isin: "INE280A01028" }
+                { name: "Tata Motors Ltd", symbol: "TATAMOTORS", bse: "500570", isin: "INE155A01022" },
+                { name: "Tata Steel Ltd", symbol: "TATASTEEL", bse: "500470", isin: "INE081A01020" }
             ];
 
             function switchTab(tab, element) {
@@ -227,6 +225,7 @@ def mini_app_home():
                         <div><h2 class="text-base font-bold">Find Instruments</h2><p class="text-gray-400 text-xs">Search NSE symbols, BSE codes, ISIN, or company name</p></div>
                         <input type="text" id="searchInput" placeholder="Search e.g. Reliance, TATACAP, 500325..." oninput="performSearch(this.value)" class="w-full p-2.5 bg-[#1e293b] rounded-lg border border-slate-800 text-white text-xs outline-none focus:border-blue-500">
                         <div id="search-results" class="space-y-2">
+                            ${instruments.length === 0 ? '<div class="text-center py-10 text-gray-400 text-xs">No instruments found.</div>' : ''}
                             ${instruments.map(inst => {
                                 const isFollowed = watchlist.some(w => w.code === inst.symbol);
                                 return `
@@ -269,11 +268,6 @@ def mini_app_home():
                 const q = query.toLowerCase();
                 let filtered = allInstruments.filter(i => i.name.toLowerCase().includes(q) || i.symbol.toLowerCase().includes(q) || i.bse.includes(q) || i.isin.toLowerCase().includes(q));
                 
-                // Dynamic fallback if searching any random stock name not in static list
-                if(filtered.length === 0 && q.length > 1) {
-                    filtered = [{ name: query.toUpperCase() + " Ltd", symbol: query.toUpperCase(), bse: "500000", isin: "INE000000000" }];
-                }
-
                 renderSearchView(filtered);
                 const inputEl = document.getElementById('searchInput');
                 if(inputEl) {
@@ -324,7 +318,7 @@ def send_webapp_button(chat_id):
     url = f"{TELEGRAM_API_URL}/sendMessage"
     payload = {
         "chat_id": chat_id,
-        "text": "🚀 **FinPulse Pro मिनी ऐप अपडेट हो चुका है!**\n\nअब सभी फिल्टर्स, सर्च, वॉचलिस्ट फॉलो और सेटिंग्स टॉगल पूरी तरह एक्टिव हैं। खोलने के लिए नीचे दिए गए बटन पर क्लिक करें:",
+        "text": "🚀 **FinPulse Pro मिनी ऐप अपडेट हो चुका है!**\n\nअब केवल असली NSE/BSE लिस्टेड कंपनियां ही सर्च में आएंगी। ओपन करने के लिए नीचे दिए गए बटन पर क्लिक करें:",
         "parse_mode": "Markdown",
         "reply_markup": {
             "inline_keyboard": [

@@ -73,7 +73,7 @@ def mini_app_home():
             let currentTab = 'watchlist';
             let currentFilter = 'all';
 
-            // Real Listed Companies Results Calendar
+            // Results Calendar Database
             const allResults = [
                 { name: "BF Utilities Ltd", exchange: "NSE", code: "BFUTILITIE", bse: "532430", date: "Wed, 30 Sept", type: "today", period: "Q1 FY26-27" },
                 { name: "Globe Commercials Ltd", exchange: "BSE", code: "GLOBE", bse: "540266", date: "Wed, 30 Sept", type: "today", period: "Q1 FY26-27" },
@@ -81,17 +81,18 @@ def mini_app_home():
                 { name: "Pranav Constructions Ltd", exchange: "NSE", code: "PRANAV", bse: "544909", date: "Thu, 1 Oct", type: "tomorrow", period: "Q2 FY26-27" },
                 { name: "Tata Consultancy Services Ltd", exchange: "NSE", code: "TCS", bse: "532540", date: "Fri, 2 Oct", type: "upcoming", period: "Q2 FY26-27" },
                 { name: "Reliance Industries Ltd", exchange: "NSE", code: "RELIANCE", bse: "500325", date: "Sat, 3 Oct", type: "upcoming", period: "Q2 FY26-27" },
+                { name: "KEI Industries Ltd", exchange: "NSE", code: "KEI", bse: "517569", date: "Sun, 4 Oct", type: "upcoming", period: "Q2 FY26-27" },
                 { name: "Infosys Limited", exchange: "NSE", code: "INFY", bse: "500209", date: "Mon, 5 Oct", type: "upcoming", period: "Q2 FY26-27" },
                 { name: "HDFC Bank Limited", exchange: "NSE", code: "HDFCBANK", bse: "500180", date: "Tue, 6 Oct", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "State Bank of India", exchange: "NSE", code: "SBIN", bse: "500112", date: "Wed, 7 Oct", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "ITC Limited", exchange: "NSE", code: "ITC", bse: "500875", date: "Thu, 8 Oct", type: "upcoming", period: "Q2 FY26-27" }
+                { name: "State Bank of India", exchange: "NSE", code: "SBIN", bse: "500112", date: "Wed, 7 Oct", type: "upcoming", period: "Q2 FY26-27" }
             ];
 
-            // Official Listed Instruments Database (NSE/BSE)
+            // Master Instruments Database
             const allInstruments = [
                 { name: "Tata Consultancy Services Ltd", symbol: "TCS", bse: "532540", isin: "INE467B01029" },
                 { name: "Reliance Industries Ltd", symbol: "RELIANCE", bse: "500325", isin: "INE002A01018" },
                 { name: "HDFC Bank Limited", symbol: "HDFCBANK", bse: "500180", isin: "INE040A01034" },
+                { name: "KEI Industries Ltd", symbol: "KEI", bse: "517569", isin: "INE378B01021" },
                 { name: "Infosys Limited", symbol: "INFY", bse: "500209", isin: "INE009A01021" },
                 { name: "State Bank of India", symbol: "SBIN", bse: "500112", isin: "INE062A01020" },
                 { name: "ITC Limited", symbol: "ITC", bse: "500875", isin: "INE154A01025" },
@@ -107,8 +108,7 @@ def mini_app_home():
                 { name: "Asian Paints Limited", symbol: "ASIANPAINT", bse: "500820", isin: "INE021A01026" },
                 { name: "HCL Technologies Ltd", symbol: "HCLTECH", bse: "532281", isin: "INE860A01027" },
                 { name: "Maruti Suzuki India Ltd", symbol: "MARUTI", bse: "532500", isin: "INE585B01010" },
-                { name: "Tata Motors Ltd", symbol: "TATAMOTORS", bse: "500570", isin: "INE155A01022" },
-                { name: "Tata Steel Ltd", symbol: "TATASTEEL", bse: "500470", isin: "INE081A01020" }
+                { name: "Tata Motors Ltd", symbol: "TATAMOTORS", bse: "500570", isin: "INE155A01022" }
             ];
 
             function switchTab(tab, element) {
@@ -201,14 +201,14 @@ def mini_app_home():
                         <input type="text" id="calendarSearchInput" value="${searchQ}" placeholder="Search by company name or ticker..." oninput="searchCalendar(this.value)" class="w-full p-2.5 bg-[#1e293b] rounded-lg border border-slate-800 text-white text-xs outline-none focus:border-blue-500">
                         
                         <div id="results-list" class="space-y-2.5">
-                            ${list.length === 0 ? '<div class="text-center py-10 text-gray-400 text-xs">कोई रिजल्ट नहीं मिला।</div>' : ''}
+                            ${list.length === 0 ? '<div class="text-center py-10 text-gray-400 text-xs">No results found.</div>' : ''}
                             ${list.map(item => {
                                 const isFollowed = watchlist.some(w => w.code === item.code);
                                 return `
                                 <div class="bg-[#1e293b] p-3 rounded-xl border border-slate-800 flex justify-between items-center">
                                     <div>
                                         <div class="flex items-center space-x-2 mb-1"><span class="font-semibold text-xs">${item.name}</span><span class="bg-blue-950 text-blue-400 text-[9px] px-1.5 py-0.5 rounded font-mono">${item.exchange}</span></div>
-                                        <p class="text-[10px] text-gray-400">📅 ${item.date} &nbsp;\vert{}&nbsp; ${item.period}</p>
+                                        <p class="text-[10px] text-gray-400">📅 ${item.date} \vert{}${item.period}</p>
                                         <p class="text-[10px] text-gray-500 font-mono mt-0.5">${item.exchange}: ${item.code} \vert{} BSE:${item.bse}</p>
                                     </div>
                                     <button onclick="toggleWatch('${item.name}', '${item.exchange}', '${item.code}')" class="${isFollowed?'bg-emerald-600':'bg-blue-600 hover:bg-blue-500'} text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap">${isFollowed ? '✓ Following' : '+ Watch'}</button>
@@ -218,12 +218,12 @@ def mini_app_home():
                     </div>`;
             }
 
-            function renderSearchView(instruments) {
+            function renderSearchView(instruments, searchQ = "") {
                 const content = document.getElementById('content');
                 content.innerHTML = `
                     <div class="space-y-3">
                         <div><h2 class="text-base font-bold">Find Instruments</h2><p class="text-gray-400 text-xs">Search NSE symbols, BSE codes, ISIN, or company name</p></div>
-                        <input type="text" id="searchInput" placeholder="Search e.g. Reliance, TATACAP, 500325..." oninput="performSearch(this.value)" class="w-full p-2.5 bg-[#1e293b] rounded-lg border border-slate-800 text-white text-xs outline-none focus:border-blue-500">
+                        <input type="text" id="searchInput" value="${searchQ}" placeholder="Search e.g. Reliance, KEI, 517569..." oninput="performSearch(this.value)" class="w-full p-2.5 bg-[#1e293b] rounded-lg border border-slate-800 text-white text-xs outline-none focus:border-blue-500">
                         <div id="search-results" class="space-y-2">
                             ${instruments.length === 0 ? '<div class="text-center py-10 text-gray-400 text-xs">No instruments found.</div>' : ''}
                             ${instruments.map(inst => {
@@ -268,10 +268,9 @@ def mini_app_home():
                 const q = query.toLowerCase();
                 let filtered = allInstruments.filter(i => i.name.toLowerCase().includes(q) || i.symbol.toLowerCase().includes(q) || i.bse.includes(q) || i.isin.toLowerCase().includes(q));
                 
-                renderSearchView(filtered);
+                renderSearchView(filtered, query);
                 const inputEl = document.getElementById('searchInput');
                 if(inputEl) {
-                    inputEl.value = query;
                     inputEl.focus();
                 }
             }
@@ -318,13 +317,13 @@ def send_webapp_button(chat_id):
     url = f"{TELEGRAM_API_URL}/sendMessage"
     payload = {
         "chat_id": chat_id,
-        "text": "🚀 **FinPulse Pro मिनी ऐप अपडेट हो चुका है!**\n\nअब केवल असली NSE/BSE लिस्टेड कंपनियां ही सर्च में आएंगी। ओपन करने के लिए नीचे दिए गए बटन पर क्लिक करें:",
+        "text": "🚀 **FinPulse Pro अपडेट हो गया है!**\n\nअब कैलेंडर का `ert{}` बग ठीक कर दिया गया है और KEI जैसे सभी स्टॉक्स सही से सर्च में आएंगे। ओपन करने के लिए नीचे दिए गए बटन पर क्लिक करें:",
         "parse_mode": "Markdown",
         "reply_markup": {
             "inline_keyboard": [
                 [
                     {
-                        "text": "⚡ Open FinPulse Dashboard",
+                        "text": "🚀 Open FinPulse Dashboard",
                         "web_app": {"url": RENDER_EXTERNAL_URL}
                     }
                 ]

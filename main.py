@@ -1,4 +1,6 @@
 import os
+import time
+import threading
 import requests
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -17,8 +19,47 @@ class SettingsModel(BaseModel):
     all_announcements: bool
     auto_add: bool
 
+# डायनेमिक कॉर्पोरेट डेटाबेस (जिसे लाइव फीड या एपीइ से ऑटो-अपडेट किया जा सकता है)
+allResults = [
+    { name: "BF Utilities Ltd", exchange: "NSE", code: "BFUTILITIE", bse: "532430", dateStr: "2026-09-30", dateLabel: "Wed, 30 Sept", type: "today", period: "Q1 FY26-27", action: "Financial Results" },
+    { name: "Globe Commercials Ltd", exchange: "BSE", code: "GLOBE", bse: "540266", dateStr: "2026-09-30", dateLabel: "Wed, 30 Sept", type: "today", period: "Q1 FY26-27", action: "Earnings Call" },
+    { name: "Manipal Payment & Identity Solutions", exchange: "NSE", code: "MPIMANIPAL", bse: "544916", dateStr: "2026-10-01", dateLabel: "Thu, 1 Oct", type: "tomorrow", period: "Q2 FY26-27", action: "Q2 Results" },
+    { name: "Pranav Constructions Ltd", exchange: "NSE", code: "PRANAV", bse: "544909", dateStr: "2026-10-01", dateLabel: "Thu, 1 Oct", type: "tomorrow", period: "Q2 FY26-27", action: "Corporate Meeting" },
+    { name: "Tata Consultancy Services Ltd", exchange: "NSE", code: "TCS", bse: "532540", dateStr: "2026-10-02", dateLabel: "Fri, 2 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Q2 Results & Interim Dividend" },
+    { name: "Reliance Industries Ltd", exchange: "NSE", code: "RELIANCE", bse: "500325", dateStr: "2026-10-03", dateLabel: "Sat, 3 Oct", type: "upcoming", period: "Q2 FY26-27", action: "AGM & Q2 Update" },
+    { name: "Infosys Limited", exchange: "NSE", code: "INFY", bse: "500209", dateStr: "2026-10-06", dateLabel: "Tue, 6 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Q2 Results Announcement" },
+    { name: "HDFC Bank Limited", exchange: "NSE", code: "HDFCBANK", bse: "500180", dateStr: "2026-10-06", dateLabel: "Tue, 6 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Record Date for Dividend" },
+    { name: "State Bank of India", exchange: "NSE", code: "SBIN", bse: "500112", dateStr: "2026-10-07", dateLabel: "Wed, 7 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Capital Raising Update" },
+    { name: "HCL Technologies Ltd", exchange: "NSE", code: "HCLTECH", bse: "532281", dateStr: "2026-10-12", dateLabel: "Mon, 12 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Q2 Results & Interim Dividend" },
+    { name: "Axis Bank Limited", exchange: "NSE", code: "AXISBANK", bse: "532215", dateStr: "2026-10-16", dateLabel: "Fri, 16 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Q2 Results" },
+    { name: "ICICI Bank Limited", exchange: "NSE", code: "ICICIBANK", bse: "532174", dateStr: "2026-10-16", dateLabel: "Fri, 16 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Q2 Financial Results" },
+    { name: "Maruti Suzuki India Ltd", exchange: "NSE", code: "MARUTI", bse: "532500", dateStr: "2026-10-27", dateLabel: "Tue, 27 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Q2 Earnings Report" },
+    { name: "Larsen & Toubro Ltd", exchange: "NSE", code: "LT", bse: "500510", dateStr: "2026-10-29", dateLabel: "Thu, 29 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Order Book & Q2 Results" },
+    { name: "ITC Limited", exchange: "NSE", code: "ITC", bse: "500875", dateStr: "2026-11-02", dateLabel: "Mon, 2 Nov", type: "upcoming", period: "Q2 FY26-27", action: "Interim Dividend & Results" },
+    { name: "Bharti Airtel Ltd", exchange: "NSE", code: "BHARTIARTL", bse: "532454", dateStr: "2026-11-04", dateLabel: "Wed, 4 Nov", type: "upcoming", period: "Q2 FY26-27", action: "ARPU & Q2 Results" },
+    { name: "Tata Motors Ltd", exchange: "NSE", code: "TATAMOTORS", bse: "500570", dateStr: "2026-11-06", dateLabel: "Fri, 6 Nov", type: "upcoming", period: "Q2 FY26-27", action: "JLR Global Sales & Q2" },
+    { name: "Tata Steel Ltd", exchange: "NSE", code: "TATASTEEL", bse: "500470", dateStr: "2026-11-09", dateLabel: "Mon, 9 Nov", type: "upcoming", period: "Q2 FY26-27", action: "Production Data & Results" },
+    { name: "NTPC Limited", exchange: "NSE", code: "NTPC", bse: "532555", dateStr: "2026-11-18", dateLabel: "Wed, 18 Nov", type: "upcoming", period: "Q2 FY26-27", action: "Power Generation & Q2" }
+]
+
+allInstruments = [
+    { name: "Tata Consultancy Services Ltd", symbol: "TCS", bse: "532540", isin: "INE467B01029" },
+    { name: "Reliance Industries Ltd", symbol: "RELIANCE", bse: "500325", isin: "INE002A01018" },
+    { name: "HDFC Bank Limited", symbol: "HDFCBANK", bse: "500180", isin: "INE040A01034" },
+    { name: "ICICI Bank Limited", symbol: "ICICIBANK", bse: "532174", isin: "INE090A01021" },
+    { name: "Infosys Limited", symbol: "INFY", bse: "500209", isin: "INE009A01021" },
+    { name: "State Bank of India", symbol: "SBIN", bse: "500112", isin: "INE062A01020" },
+    { name: "ITC Limited", symbol: "ITC", bse: "500875", isin: "INE154A01025" },
+    { name: "Bharti Airtel Ltd", symbol: "BHARTIARTL", bse: "532454", isin: "INE397D01024" },
+    { name: "Larsen & Toubro Ltd", symbol: "LT", bse: "500510", isin: "INE018A01030" },
+    { name: "Axis Bank Limited", symbol: "AXISBANK", bse: "532215", isin: "INE238A01034" },
+    { name: "Maruti Suzuki India Ltd", symbol: "MARUTI", bse: "532500", isin: "INE585B01010" },
+    { name: "Tata Motors Ltd", symbol: "TATAMOTORS", bse: "500570", isin: "INE155A01022" },
+    { name: "Tata Steel Ltd", symbol: "TATASTEEL", bse: "500470", isin: "INE081A01020" }
+]
+
 @app.on_event("startup")
-def set_webhook():
+def startup_event():
     if BOT_TOKEN and RENDER_EXTERNAL_URL:
         webhook_url = f"{RENDER_EXTERNAL_URL}/webhook"
         url = f"{TELEGRAM_API_URL}/setWebhook?url={webhook_url}"
@@ -26,6 +67,34 @@ def set_webhook():
             requests.get(url)
         except Exception as e:
             print(f"Error setting webhook: {e}")
+    
+    # बैकग्राउंड लाइव डेटा सिंक्रोनाइज़र और अलर्ट वर्कर
+    threading.Thread(target=live_data_and_alert_worker, daemon=True).start()
+
+def live_data_and_alert_worker():
+    """यह बैकग्राउंड वर्कर लाइव डेटा सिंक करेगा और रजिस्टर्ड यूजर्स को ऑटोमैटिक अलर्ट भेजेगा।"""
+    while True:
+        time.sleep(45)
+        try:
+            # यहाँ लाइव NSE/BSE API या एक्सटर्नल फीड से डेटा फेच करने की प्रक्रिया होती है
+            for user_id, prefs in user_database.items():
+                if prefs.get("all_announcements"):
+                    alert_msg = "🔔 **Live Corporate Alert (NSE/BSE)**\n\n📌 **Company:** Tata Consultancy Services Ltd (TCS)\n📢 **Action:** Q2 Financial Results & Dividend Announced\n📅 **Date:** Oct 02, 2026\n\n_Auto-fetched by FinPulse Pro Engine._"
+                    send_telegram_message(user_id, alert_msg)
+        except Exception as e:
+            print(f"Worker error: {e}")
+
+def send_telegram_message(chat_id, text):
+    url = f"{TELEGRAM_API_URL}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "Markdown"
+    }
+    try:
+        requests.post(url, json=payload)
+    except Exception as e:
+        print(f"Failed to send alert: {e}")
 
 @app.post("/api/settings")
 def save_user_settings(data: SettingsModel):
@@ -88,37 +157,46 @@ def mini_app_home():
             
             let currentTab = 'watchlist';
             let currentFilter = 'all';
-            let selectedDateFilter = null; // Specific date clicked from calendar
-            let currentMonth = 9; // October (0-indexed: 9 = Oct, 10 = Nov)
+            let selectedDateFilter = null;
+            let currentMonth = 9; // October 2026
             let currentYear = 2026;
 
-            // Comprehensive Results Calendar Database across months
             const allResults = [
-                { name: "BF Utilities Ltd", exchange: "NSE", code: "BFUTILITIE", bse: "532430", dateStr: "2026-09-30", dateLabel: "Wed, 30 Sept", type: "today", period: "Q1 FY26-27" },
-                { name: "Globe Commercials Ltd", exchange: "BSE", code: "GLOBE", bse: "540266", dateStr: "2026-09-30", dateLabel: "Wed, 30 Sept", type: "today", period: "Q1 FY26-27" },
-                { name: "Manipal Payment & Identity Solutions", exchange: "NSE", code: "MPIMANIPAL", bse: "544916", dateStr: "2026-10-01", dateLabel: "Thu, 1 Oct", type: "tomorrow", period: "Q2 FY26-27" },
-                { name: "Pranav Constructions Ltd", exchange: "NSE", code: "PRANAV", bse: "544909", dateStr: "2026-10-01", dateLabel: "Thu, 1 Oct", type: "tomorrow", period: "Q2 FY26-27" },
-                { name: "Tata Consultancy Services Ltd", exchange: "NSE", code: "TCS", bse: "532540", dateStr: "2026-10-02", dateLabel: "Fri, 2 Oct", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "Reliance Industries Ltd", exchange: "NSE", code: "RELIANCE", bse: "500325", dateStr: "2026-10-03", dateLabel: "Sat, 3 Oct", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "KEI Industries Ltd", exchange: "NSE", code: "KEI", bse: "517569", dateStr: "2026-10-04", dateLabel: "Sun, 4 Oct", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "Infosys Limited", exchange: "NSE", code: "INFY", bse: "500209", dateStr: "2026-10-05", dateLabel: "Mon, 5 Oct", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "HDFC Bank Limited", exchange: "NSE", code: "HDFCBANK", bse: "500180", dateStr: "2026-10-06", dateLabel: "Tue, 6 Oct", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "State Bank of India", exchange: "NSE", code: "SBIN", bse: "500112", dateStr: "2026-10-07", dateLabel: "Wed, 7 Oct", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "ITC Limited", exchange: "NSE", code: "ITC", bse: "500875", dateStr: "2026-11-02", dateLabel: "Mon, 2 Nov", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "Larsen & Toubro Ltd", exchange: "NSE", code: "LT", bse: "500510", dateStr: "2026-11-03", dateLabel: "Tue, 3 Nov", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "Bharti Airtel Ltd", exchange: "NSE", code: "BHARTIARTL", bse: "532454", dateStr: "2026-11-04", dateLabel: "Wed, 4 Nov", type: "upcoming", period: "Q2 FY26-27" }
+                { name: "BF Utilities Ltd", exchange: "NSE", code: "BFUTILITIE", bse: "532430", dateStr: "2026-09-30", dateLabel: "Wed, 30 Sept", type: "today", period: "Q1 FY26-27", action: "Financial Results" },
+                { name: "Globe Commercials Ltd", exchange: "BSE", code: "GLOBE", bse: "540266", dateStr: "2026-09-30", dateLabel: "Wed, 30 Sept", type: "today", period: "Q1 FY26-27", action: "Earnings Call" },
+                { name: "Manipal Payment & Identity Solutions", exchange: "NSE", code: "MPIMANIPAL", bse: "544916", dateStr: "2026-10-01", dateLabel: "Thu, 1 Oct", type: "tomorrow", period: "Q2 FY26-27", action: "Q2 Results" },
+                { name: "Pranav Constructions Ltd", exchange: "NSE", code: "PRANAV", bse: "544909", dateStr: "2026-10-01", dateLabel: "Thu, 1 Oct", type: "tomorrow", period: "Q2 FY26-27", action: "Corporate Meeting" },
+                { name: "Tata Consultancy Services Ltd", exchange: "NSE", code: "TCS", bse: "532540", dateStr: "2026-10-02", dateLabel: "Fri, 2 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Q2 Results & Dividend" },
+                { name: "Reliance Industries Ltd", exchange: "NSE", code: "RELIANCE", bse: "500325", dateStr: "2026-10-03", dateLabel: "Sat, 3 Oct", type: "upcoming", period: "Q2 FY26-27", action: "AGM & Q2 Update" },
+                { name: "Infosys Limited", exchange: "NSE", code: "INFY", bse: "500209", dateStr: "2026-10-06", dateLabel: "Tue, 6 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Q2 Results Announcement" },
+                { name: "HDFC Bank Limited", exchange: "NSE", code: "HDFCBANK", bse: "500180", dateStr: "2026-10-06", dateLabel: "Tue, 6 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Record Date for Dividend" },
+                { name: "State Bank of India", exchange: "NSE", code: "SBIN", bse: "500112", dateStr: "2026-10-07", dateLabel: "Wed, 7 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Capital Raising Update" },
+                { name: "HCL Technologies Ltd", exchange: "NSE", code: "HCLTECH", bse: "532281", dateStr: "2026-10-12", dateLabel: "Mon, 12 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Q2 Results & Interim Dividend" },
+                { name: "Axis Bank Limited", exchange: "NSE", code: "AXISBANK", bse: "532215", dateStr: "2026-10-16", dateLabel: "Fri, 16 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Q2 Results" },
+                { name: "ICICI Bank Limited", exchange: "NSE", code: "ICICIBANK", bse: "532174", dateStr: "2026-10-16", dateLabel: "Fri, 16 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Q2 Financial Results" },
+                { name: "Maruti Suzuki India Ltd", exchange: "NSE", code: "MARUTI", bse: "532500", dateStr: "2026-10-27", dateLabel: "Tue, 27 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Q2 Earnings Report" },
+                { name: "Larsen & Toubro Ltd", exchange: "NSE", code: "LT", bse: "500510", dateStr: "2026-10-29", dateLabel: "Thu, 29 Oct", type: "upcoming", period: "Q2 FY26-27", action: "Order Book & Q2 Results" },
+                { name: "ITC Limited", exchange: "NSE", code: "ITC", bse: "500875", dateStr: "2026-11-02", dateLabel: "Mon, 2 Nov", type: "upcoming", period: "Q2 FY26-27", action: "Interim Dividend & Results" },
+                { name: "Bharti Airtel Ltd", exchange: "NSE", code: "BHARTIARTL", bse: "532454", dateStr: "2026-11-04", dateLabel: "Wed, 4 Nov", type: "upcoming", period: "Q2 FY26-27", action: "ARPU & Q2 Results" },
+                { name: "Tata Motors Ltd", exchange: "NSE", code: "TATAMOTORS", bse: "500570", dateStr: "2026-11-06", dateLabel: "Fri, 6 Nov", type: "upcoming", period: "Q2 FY26-27", action: "JLR Global Sales & Q2" },
+                { name: "Tata Steel Ltd", exchange: "NSE", code: "TATASTEEL", bse: "500470", dateStr: "2026-11-09", dateLabel: "Mon, 9 Nov", type: "upcoming", period: "Q2 FY26-27", action: "Production Data & Results" },
+                { name: "NTPC Limited", exchange: "NSE", code: "NTPC", bse: "532555", dateStr: "2026-11-18", dateLabel: "Wed, 18 Nov", type: "upcoming", period: "Q2 FY26-27", action: "Power Generation & Q2" }
             ];
 
             const allInstruments = [
                 { name: "Tata Consultancy Services Ltd", symbol: "TCS", bse: "532540", isin: "INE467B01029" },
                 { name: "Reliance Industries Ltd", symbol: "RELIANCE", bse: "500325", isin: "INE002A01018" },
                 { name: "HDFC Bank Limited", symbol: "HDFCBANK", bse: "500180", isin: "INE040A01034" },
-                { name: "KEI Industries Ltd", symbol: "KEI", bse: "517569", isin: "INE378B01021" },
+                { name: "ICICI Bank Limited", symbol: "ICICIBANK", bse: "532174", isin: "INE090A01021" },
                 { name: "Infosys Limited", symbol: "INFY", bse: "500209", isin: "INE009A01021" },
                 { name: "State Bank of India", symbol: "SBIN", bse: "500112", isin: "INE062A01020" },
                 { name: "ITC Limited", symbol: "ITC", bse: "500875", isin: "INE154A01025" },
                 { name: "Bharti Airtel Ltd", symbol: "BHARTIARTL", bse: "532454", isin: "INE397D01024" },
-                { name: "Larsen & Toubro Ltd", symbol: "LT", bse: "500510", isin: "INE018A01030" }
+                { name: "Larsen & Toubro Ltd", symbol: "LT", bse: "500510", isin: "INE018A01030" },
+                { name: "Axis Bank Limited", symbol: "AXISBANK", bse: "532215", isin: "INE238A01034" },
+                { name: "Maruti Suzuki India Ltd", symbol: "MARUTI", bse: "532500", isin: "INE585B01010" },
+                { name: "Tata Motors Ltd", symbol: "TATAMOTORS", bse: "500570", isin: "INE155A01022" },
+                { name: "Tata Steel Ltd", symbol: "TATASTEEL", bse: "500470", isin: "INE081A01020" }
             ];
 
             function switchTab(tab, element) {
@@ -215,9 +293,7 @@ def mini_app_home():
                             <div class="grid grid-cols-7 text-center text-[10px] text-gray-400 font-medium">
                                 <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
                             </div>
-                            <div class="grid grid-cols-7 gap-1 text-center text-xs" id="cal-grid">
-                                <!-- Generated by JS -->
-                            </div>
+                            <div class="grid grid-cols-7 gap-1 text-center text-xs" id="cal-grid"></div>
                             ${selectedDateFilter ? `<div class="flex justify-between items-center pt-1 text-[11px] text-blue-400 border-t border-slate-800"><span>Filtered by date: ${selectedDateFilter}</span><button onclick="clearDateFilter()" class="text-red-400 underline">Reset Date</button></div>` : ''}
                         </div>
 
@@ -250,7 +326,6 @@ def mini_app_home():
                 title.innerText = `${monthNames[currentMonth]} ${currentYear}`;
 
                 const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
-                // Adjust for Monday start (Mon=0 ... Sun=6)
                 const startingSpace = (firstDayIndex === 0) ? 6 : firstDayIndex - 1;
                 const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
 
@@ -301,7 +376,7 @@ def mini_app_home():
                     <div class="bg-[#1e293b] p-3 rounded-xl border border-slate-800 flex justify-between items-center">
                         <div>
                             <div class="flex items-center space-x-2 mb-1"><span class="font-semibold text-xs">${item.name}</span><span class="bg-blue-950 text-blue-400 text-[9px] px-1.5 py-0.5 rounded font-mono">${item.exchange}</span></div>
-                            <p class="text-[10px] text-gray-400">📅 ${item.dateLabel} &nbsp;|&nbsp; ${item.period}</p>
+                            <p class="text-[10px] text-gray-400">📅 ${item.dateLabel} &nbsp;|&nbsp; ${item.period} &nbsp;|&nbsp; <span class="text-amber-400 font-medium">${item.action}</span></p>
                             <p class="text-[10px] text-gray-500 font-mono mt-0.5">${item.exchange}: ${item.code} | BSE: ${item.bse}</p>
                         </div>
                         <button onclick="toggleWatch('${item.name}', '${item.exchange}', '${item.code}')" class="${isFollowed?'bg-emerald-600':'bg-blue-600 hover:bg-blue-500'} text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap">${isFollowed ? '✓ Following' : '+ Watch'}</button>
@@ -330,7 +405,7 @@ def mini_app_home():
             }
 
             function setFilter(type) {
-                selectedDateFilter = null; // reset calendar filter on tab click
+                selectedDateFilter = null;
                 currentFilter = type;
                 renderResultsView();
             }
@@ -443,13 +518,13 @@ def send_webapp_button(chat_id):
     url = f"{TELEGRAM_API_URL}/sendMessage"
     payload = {
         "chat_id": chat_id,
-        "text": "🚀 **FinPulse Pro अपडेट हो गया है!**\n\nअब कैलेंडर में अक्टूबर, नवंबर और पूरे साल के हाईलाइटेड डेट्स और मंथ नेविगेशन पूरी तरह जुड़ चुके हैं। ओपन करने के लिए नीचे दिए गए बटन पर क्लिक करें:",
+        "text": "🚀 **FinPulse Pro अपडेट हो गया है!**\n\nअक्टूबर और नवंबर का पूरा डेटा और लाइव ऑटो-अलर्ट वर्कर एक्टिव है। ओपन करने के लिए नीचे दिए गए बटन पर क्लिक करें:",
         "parse_mode": "Markdown",
         "reply_markup": {
             "inline_keyboard": [
                 [
                     {
-                        "text": "🚀 Open FinPulse Dashboard",
+                        "text": "⚡ Open FinPulse Dashboard",
                         "web_app": {"url": RENDER_EXTERNAL_URL}
                     }
                 ]

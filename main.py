@@ -2,12 +2,20 @@ import os
 import requests
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 
 app = FastAPI()
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL")
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
+
+user_database = {}
+
+class SettingsModel(BaseModel):
+    user_id: str
+    all_announcements: bool
+    auto_add: bool
 
 @app.on_event("startup")
 def set_webhook():
@@ -18,6 +26,14 @@ def set_webhook():
             requests.get(url)
         except Exception as e:
             print(f"Error setting webhook: {e}")
+
+@app.post("/api/settings")
+def save_user_settings(data: SettingsModel):
+    user_database[data.user_id] = {
+        "all_announcements": data.all_announcements,
+        "auto_add": data.auto_add
+    }
+    return {"status": "success"}
 
 @app.get("/", response_class=HTMLResponse)
 def mini_app_home():
@@ -68,26 +84,31 @@ def mini_app_home():
             document.getElementById('top-username').innerText = username;
 
             let watchlist = JSON.parse(localStorage.getItem('finpulse_watchlist')) || [];
-            let settingsState = JSON.parse(localStorage.getItem('finpulse_settings')) || { allAnnouncements: true, autoAdd: true };
+            let settingsState = JSON.parse(localStorage.getItem('finpulse_settings')) || { allAnnouncements: false, autoAdd: false, onlyFollowed: false };
             
             let currentTab = 'watchlist';
             let currentFilter = 'all';
+            let selectedDateFilter = null; // Specific date clicked from calendar
+            let currentMonth = 9; // October (0-indexed: 9 = Oct, 10 = Nov)
+            let currentYear = 2026;
 
-            // Results Calendar Database
+            // Comprehensive Results Calendar Database across months
             const allResults = [
-                { name: "BF Utilities Ltd", exchange: "NSE", code: "BFUTILITIE", bse: "532430", date: "Wed, 30 Sept", type: "today", period: "Q1 FY26-27" },
-                { name: "Globe Commercials Ltd", exchange: "BSE", code: "GLOBE", bse: "540266", date: "Wed, 30 Sept", type: "today", period: "Q1 FY26-27" },
-                { name: "Manipal Payment & Identity Solutions", exchange: "NSE", code: "MPIMANIPAL", bse: "544916", date: "Thu, 1 Oct", type: "tomorrow", period: "Q2 FY26-27" },
-                { name: "Pranav Constructions Ltd", exchange: "NSE", code: "PRANAV", bse: "544909", date: "Thu, 1 Oct", type: "tomorrow", period: "Q2 FY26-27" },
-                { name: "Tata Consultancy Services Ltd", exchange: "NSE", code: "TCS", bse: "532540", date: "Fri, 2 Oct", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "Reliance Industries Ltd", exchange: "NSE", code: "RELIANCE", bse: "500325", date: "Sat, 3 Oct", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "KEI Industries Ltd", exchange: "NSE", code: "KEI", bse: "517569", date: "Sun, 4 Oct", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "Infosys Limited", exchange: "NSE", code: "INFY", bse: "500209", date: "Mon, 5 Oct", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "HDFC Bank Limited", exchange: "NSE", code: "HDFCBANK", bse: "500180", date: "Tue, 6 Oct", type: "upcoming", period: "Q2 FY26-27" },
-                { name: "State Bank of India", exchange: "NSE", code: "SBIN", bse: "500112", date: "Wed, 7 Oct", type: "upcoming", period: "Q2 FY26-27" }
+                { name: "BF Utilities Ltd", exchange: "NSE", code: "BFUTILITIE", bse: "532430", dateStr: "2026-09-30", dateLabel: "Wed, 30 Sept", type: "today", period: "Q1 FY26-27" },
+                { name: "Globe Commercials Ltd", exchange: "BSE", code: "GLOBE", bse: "540266", dateStr: "2026-09-30", dateLabel: "Wed, 30 Sept", type: "today", period: "Q1 FY26-27" },
+                { name: "Manipal Payment & Identity Solutions", exchange: "NSE", code: "MPIMANIPAL", bse: "544916", dateStr: "2026-10-01", dateLabel: "Thu, 1 Oct", type: "tomorrow", period: "Q2 FY26-27" },
+                { name: "Pranav Constructions Ltd", exchange: "NSE", code: "PRANAV", bse: "544909", dateStr: "2026-10-01", dateLabel: "Thu, 1 Oct", type: "tomorrow", period: "Q2 FY26-27" },
+                { name: "Tata Consultancy Services Ltd", exchange: "NSE", code: "TCS", bse: "532540", dateStr: "2026-10-02", dateLabel: "Fri, 2 Oct", type: "upcoming", period: "Q2 FY26-27" },
+                { name: "Reliance Industries Ltd", exchange: "NSE", code: "RELIANCE", bse: "500325", dateStr: "2026-10-03", dateLabel: "Sat, 3 Oct", type: "upcoming", period: "Q2 FY26-27" },
+                { name: "KEI Industries Ltd", exchange: "NSE", code: "KEI", bse: "517569", dateStr: "2026-10-04", dateLabel: "Sun, 4 Oct", type: "upcoming", period: "Q2 FY26-27" },
+                { name: "Infosys Limited", exchange: "NSE", code: "INFY", bse: "500209", dateStr: "2026-10-05", dateLabel: "Mon, 5 Oct", type: "upcoming", period: "Q2 FY26-27" },
+                { name: "HDFC Bank Limited", exchange: "NSE", code: "HDFCBANK", bse: "500180", dateStr: "2026-10-06", dateLabel: "Tue, 6 Oct", type: "upcoming", period: "Q2 FY26-27" },
+                { name: "State Bank of India", exchange: "NSE", code: "SBIN", bse: "500112", dateStr: "2026-10-07", dateLabel: "Wed, 7 Oct", type: "upcoming", period: "Q2 FY26-27" },
+                { name: "ITC Limited", exchange: "NSE", code: "ITC", bse: "500875", dateStr: "2026-11-02", dateLabel: "Mon, 2 Nov", type: "upcoming", period: "Q2 FY26-27" },
+                { name: "Larsen & Toubro Ltd", exchange: "NSE", code: "LT", bse: "500510", dateStr: "2026-11-03", dateLabel: "Tue, 3 Nov", type: "upcoming", period: "Q2 FY26-27" },
+                { name: "Bharti Airtel Ltd", exchange: "NSE", code: "BHARTIARTL", bse: "532454", dateStr: "2026-11-04", dateLabel: "Wed, 4 Nov", type: "upcoming", period: "Q2 FY26-27" }
             ];
 
-            // Master Instruments Database
             const allInstruments = [
                 { name: "Tata Consultancy Services Ltd", symbol: "TCS", bse: "532540", isin: "INE467B01029" },
                 { name: "Reliance Industries Ltd", symbol: "RELIANCE", bse: "500325", isin: "INE002A01018" },
@@ -97,18 +118,7 @@ def mini_app_home():
                 { name: "State Bank of India", symbol: "SBIN", bse: "500112", isin: "INE062A01020" },
                 { name: "ITC Limited", symbol: "ITC", bse: "500875", isin: "INE154A01025" },
                 { name: "Bharti Airtel Ltd", symbol: "BHARTIARTL", bse: "532454", isin: "INE397D01024" },
-                { name: "Larsen & Toubro Ltd", symbol: "LT", bse: "500510", isin: "INE018A01030" },
-                { name: "Axis Bank Limited", symbol: "AXISBANK", bse: "532215", isin: "INE238A01034" },
-                { name: "Kotak Mahindra Bank Ltd", symbol: "KOTAKBANK", bse: "500247", isin: "INE237A01028" },
-                { name: "BF Utilities Ltd", symbol: "BFUTILITIE", bse: "532430", isin: "INE888C01010" },
-                { name: "Globe Commercials Ltd", symbol: "GLOBE", bse: "540266", isin: "INE999D01017" },
-                { name: "Manipal Payment & Identity Solutions", symbol: "MPIMANIPAL", bse: "544916", isin: "INE111E01015" },
-                { name: "Pranav Constructions Ltd", symbol: "PRANAV", bse: "544909", isin: "INE222F01013" },
-                { name: "Wipro Limited", symbol: "WIPRO", bse: "507685", isin: "INE075A01022" },
-                { name: "Asian Paints Limited", symbol: "ASIANPAINT", bse: "500820", isin: "INE021A01026" },
-                { name: "HCL Technologies Ltd", symbol: "HCLTECH", bse: "532281", isin: "INE860A01027" },
-                { name: "Maruti Suzuki India Ltd", symbol: "MARUTI", bse: "532500", isin: "INE585B01010" },
-                { name: "Tata Motors Ltd", symbol: "TATAMOTORS", bse: "500570", isin: "INE155A01022" }
+                { name: "Larsen & Toubro Ltd", symbol: "LT", bse: "500510", isin: "INE018A01030" }
             ];
 
             function switchTab(tab, element) {
@@ -155,7 +165,7 @@ def mini_app_home():
                     renderResultsView();
                 } 
                 else if(currentTab === 'search') {
-                    renderSearchView(allInstruments);
+                    renderSearchView();
                 } 
                 else if(currentTab === 'settings') {
                     content.innerHTML = `
@@ -185,73 +195,149 @@ def mini_app_home():
                 }
             }
 
-            function renderResultsView(filteredList = null, searchQ = "") {
-                const list = filteredList || getFilteredResults();
+            function renderResultsView() {
+                const list = getFilteredResults();
                 const content = document.getElementById('content');
                 
                 content.innerHTML = `
                     <div class="space-y-3">
-                        <div><h2 class="text-base font-bold">Results Calendar</h2><p class="text-gray-400 text-xs">${list.length} companies announcing earnings</p></div>
+                        <div><h2 class="text-base font-bold">Results Calendar</h2><p class="text-gray-400 text-xs"><span id="res-count">${list.length}</span> companies announcing earnings</p></div>
+                        
+                        <!-- Interactive Calendar Widget -->
+                        <div class="bg-[#1e293b] p-3 rounded-xl border border-slate-800 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-xs" id="cal-month-title">October 2026</span>
+                                <div class="space-x-1">
+                                    <button onclick="changeMonth(-1)" class="px-2 py-1 bg-slate-800 rounded text-[10px] text-gray-300 hover:bg-slate-700">Prev</button>
+                                    <button onclick="changeMonth(1)" class="px-2 py-1 bg-slate-800 rounded text-[10px] text-gray-300 hover:bg-slate-700">Next</button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-7 text-center text-[10px] text-gray-400 font-medium">
+                                <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
+                            </div>
+                            <div class="grid grid-cols-7 gap-1 text-center text-xs" id="cal-grid">
+                                <!-- Generated by JS -->
+                            </div>
+                            ${selectedDateFilter ? `<div class="flex justify-between items-center pt-1 text-[11px] text-blue-400 border-t border-slate-800"><span>Filtered by date: ${selectedDateFilter}</span><button onclick="clearDateFilter()" class="text-red-400 underline">Reset Date</button></div>` : ''}
+                        </div>
+
+                        <div class="flex items-center justify-between bg-[#1e293b] px-3 py-2 rounded-xl border border-slate-800 text-xs">
+                            <span class="text-gray-300 font-medium">Show only my followed stocks</span>
+                            <input type="checkbox" ${settingsState.onlyFollowed ? 'checked' : ''} onchange="toggleOnlyFollowed(this.checked)" class="w-4 h-4 accent-blue-600 rounded cursor-pointer">
+                        </div>
+
                         <div class="flex space-x-1.5 overflow-x-auto pb-1 text-xs">
                             <button onclick="setFilter('all', this)" class="res-filter ${currentFilter==='all'?'bg-blue-600 text-white':'bg-slate-800 text-gray-300'} px-3 py-1.5 rounded-lg whitespace-nowrap font-medium">All Upcoming</button>
                             <button onclick="setFilter('next2', this)" class="res-filter ${currentFilter==='next2'?'bg-blue-600 text-white':'bg-slate-800 text-gray-300'} px-3 py-1.5 rounded-lg whitespace-nowrap font-medium">Next 2 Days</button>
                             <button onclick="setFilter('today', this)" class="res-filter ${currentFilter==='today'?'bg-blue-600 text-white':'bg-slate-800 text-gray-300'} px-3 py-1.5 rounded-lg whitespace-nowrap font-medium">Today</button>
                             <button onclick="setFilter('tomorrow', this)" class="res-filter ${currentFilter==='tomorrow'?'bg-blue-600 text-white':'bg-slate-800 text-gray-300'} px-3 py-1.5 rounded-lg whitespace-nowrap font-medium">Tomorrow</button>
                         </div>
-                        <input type="text" id="calendarSearchInput" value="${searchQ}" placeholder="Search by company name or ticker..." oninput="searchCalendar(this.value)" class="w-full p-2.5 bg-[#1e293b] rounded-lg border border-slate-800 text-white text-xs outline-none focus:border-blue-500">
+                        <input type="text" id="calendarSearchInput" placeholder="Search by company name or ticker..." oninput="searchCalendar(this.value)" class="w-full p-2.5 bg-[#1e293b] rounded-lg border border-slate-800 text-white text-xs outline-none focus:border-blue-500">
                         
                         <div id="results-list" class="space-y-2.5">
-                            ${list.length === 0 ? '<div class="text-center py-10 text-gray-400 text-xs">No results found.</div>' : ''}
-                            ${list.map(item => {
-                                const isFollowed = watchlist.some(w => w.code === item.code);
-                                return `
-                                <div class="bg-[#1e293b] p-3 rounded-xl border border-slate-800 flex justify-between items-center">
-                                    <div>
-                                        <div class="flex items-center space-x-2 mb-1"><span class="font-semibold text-xs">${item.name}</span><span class="bg-blue-950 text-blue-400 text-[9px] px-1.5 py-0.5 rounded font-mono">${item.exchange}</span></div>
-                                        <p class="text-[10px] text-gray-400">📅 ${item.date} \vert{}${item.period}</p>
-                                        <p class="text-[10px] text-gray-500 font-mono mt-0.5">${item.exchange}: ${item.code} \vert{} BSE:${item.bse}</p>
-                                    </div>
-                                    <button onclick="toggleWatch('${item.name}', '${item.exchange}', '${item.code}')" class="${isFollowed?'bg-emerald-600':'bg-blue-600 hover:bg-blue-500'} text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap">${isFollowed ? '✓ Following' : '+ Watch'}</button>
-                                </div>`;
-                            }).join('')}
+                            ${getCalendarCardsHTML(list)}
                         </div>
                     </div>`;
+                generateCalendarGrid();
             }
 
-            function renderSearchView(instruments, searchQ = "") {
-                const content = document.getElementById('content');
-                content.innerHTML = `
-                    <div class="space-y-3">
-                        <div><h2 class="text-base font-bold">Find Instruments</h2><p class="text-gray-400 text-xs">Search NSE symbols, BSE codes, ISIN, or company name</p></div>
-                        <input type="text" id="searchInput" value="${searchQ}" placeholder="Search e.g. Reliance, KEI, 517569..." oninput="performSearch(this.value)" class="w-full p-2.5 bg-[#1e293b] rounded-lg border border-slate-800 text-white text-xs outline-none focus:border-blue-500">
-                        <div id="search-results" class="space-y-2">
-                            ${instruments.length === 0 ? '<div class="text-center py-10 text-gray-400 text-xs">No instruments found.</div>' : ''}
-                            ${instruments.map(inst => {
-                                const isFollowed = watchlist.some(w => w.code === inst.symbol);
-                                return `
-                                <div class="bg-[#1e293b] p-3 rounded-xl border border-slate-800 flex justify-between items-center">
-                                    <div><h3 class="font-semibold text-xs">${inst.name}</h3><p class="text-[10px] text-gray-400 font-mono mt-0.5">${inst.symbol} &bull; ${inst.bse} &bull; ${inst.isin}</p></div>
-                                    <button onclick="toggleWatch('${inst.name}', 'NSE', '${inst.symbol}')" class="${isFollowed?'bg-emerald-600':'bg-blue-600'} text-white px-3 py-1.5 rounded-lg text-xs font-semibold">${isFollowed ? '✓ Following' : '+ Follow'}</button>
-                                </div>`;
-                            }).join('')}
+            function generateCalendarGrid() {
+                const grid = document.getElementById('cal-grid');
+                const title = document.getElementById('cal-month-title');
+                if(!grid) return;
+
+                const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                title.innerText = `${monthNames[currentMonth]} ${currentYear}`;
+
+                const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
+                // Adjust for Monday start (Mon=0 ... Sun=6)
+                const startingSpace = (firstDayIndex === 0) ? 6 : firstDayIndex - 1;
+                const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+                let html = '';
+                for(let i=0; i<startingSpace; i++) {
+                    html += `<div></div>`;
+                }
+
+                for(let day=1; day<=totalDays; day++) {
+                    const mStr = String(currentMonth + 1).padStart(2, '0');
+                    const dStr = String(day).padStart(2, '0');
+                    const dateStr = `${currentYear}-${mStr}-${dStr}`;
+
+                    const count = allResults.filter(i => i.dateStr === dateStr).length;
+                    const isSelected = selectedDateFilter === dateStr;
+
+                    if(count > 0) {
+                        html += `<div onclick="filterByDate('${dateStr}')" class="cursor-pointer py-1.5 bg-blue-950/80 border ${isSelected ? 'border-blue-400 bg-blue-600 text-white font-bold' : 'border-blue-800 text-blue-300'} rounded-lg flex flex-col items-center justify-center"><span class="text-[11px]">${day}</span><span class="text-[9px] bg-blue-500 text-white px-1 rounded-full mt-0.5">${count}</span></div>`;
+                    } else {
+                        html += `<div class="py-1.5 text-gray-500 text-[11px]">${day}</div>`;
+                    }
+                }
+                grid.innerHTML = html;
+            }
+
+            function changeMonth(direction) {
+                currentMonth += direction;
+                if(currentMonth > 11) { currentMonth = 0; currentYear++; }
+                if(currentMonth < 0) { currentMonth = 11; currentYear--; }
+                generateCalendarGrid();
+            }
+
+            function filterByDate(dateStr) {
+                selectedDateFilter = dateStr;
+                renderResultsView();
+            }
+
+            function clearDateFilter() {
+                selectedDateFilter = null;
+                renderResultsView();
+            }
+
+            function getCalendarCardsHTML(list) {
+                if(list.length === 0) return '<div class="text-center py-10 text-gray-400 text-xs">No results found for this selection.</div>';
+                return list.map(item => {
+                    const isFollowed = watchlist.some(w => w.code === item.code);
+                    return `
+                    <div class="bg-[#1e293b] p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+                        <div>
+                            <div class="flex items-center space-x-2 mb-1"><span class="font-semibold text-xs">${item.name}</span><span class="bg-blue-950 text-blue-400 text-[9px] px-1.5 py-0.5 rounded font-mono">${item.exchange}</span></div>
+                            <p class="text-[10px] text-gray-400">📅 ${item.dateLabel} &nbsp;|&nbsp; ${item.period}</p>
+                            <p class="text-[10px] text-gray-500 font-mono mt-0.5">${item.exchange}: ${item.code} | BSE: ${item.bse}</p>
                         </div>
+                        <button onclick="toggleWatch('${item.name}', '${item.exchange}', '${item.code}')" class="${isFollowed?'bg-emerald-600':'bg-blue-600 hover:bg-blue-500'} text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap">${isFollowed ? '✓ Following' : '+ Watch'}</button>
                     </div>`;
+                }).join('');
             }
 
             function getFilteredResults() {
                 let filtered = allResults;
-                if(currentFilter === 'today') {
-                    filtered = allResults.filter(i => i.type === 'today');
-                } else if(currentFilter === 'tomorrow') {
-                    filtered = allResults.filter(i => i.type === 'tomorrow');
-                } else if(currentFilter === 'next2') {
-                    filtered = allResults.filter(i => i.type === 'today' || i.type === 'tomorrow');
+                if(selectedDateFilter) {
+                    filtered = filtered.filter(i => i.dateStr === selectedDateFilter);
+                } else {
+                    if(currentFilter === 'today') {
+                        filtered = allResults.filter(i => i.type === 'today');
+                    } else if(currentFilter === 'tomorrow') {
+                        filtered = allResults.filter(i => i.type === 'tomorrow');
+                    } else if(currentFilter === 'next2') {
+                        filtered = allResults.filter(i => i.type === 'today' || i.type === 'tomorrow');
+                    }
+                }
+
+                if(settingsState.onlyFollowed) {
+                    filtered = filtered.filter(i => watchlist.some(w => w.code === i.code));
                 }
                 return filtered;
             }
 
             function setFilter(type) {
+                selectedDateFilter = null; // reset calendar filter on tab click
                 currentFilter = type;
+                renderResultsView();
+            }
+
+            function toggleOnlyFollowed(val) {
+                settingsState.onlyFollowed = val;
+                localStorage.setItem('finpulse_settings', JSON.stringify(settingsState));
                 renderResultsView();
             }
 
@@ -261,17 +347,40 @@ def mini_app_home():
                 if(q) {
                     filtered = filtered.filter(i => i.name.toLowerCase().includes(q) || i.code.toLowerCase().includes(q) || i.bse.includes(q));
                 }
-                renderResultsView(filtered, query);
+                document.getElementById('results-list').innerHTML = getCalendarCardsHTML(filtered);
+                document.getElementById('res-count').innerText = filtered.length;
+            }
+
+            function renderSearchView() {
+                const content = document.getElementById('content');
+                content.innerHTML = `
+                    <div class="space-y-3">
+                        <div><h2 class="text-base font-bold">Find Instruments</h2><p class="text-gray-400 text-xs">Search NSE symbols, BSE codes, ISIN, or company name</p></div>
+                        <input type="text" id="searchInput" placeholder="Search e.g. Reliance, KEI, 517569..." oninput="performSearch(this.value)" class="w-full p-2.5 bg-[#1e293b] rounded-lg border border-slate-800 text-white text-xs outline-none focus:border-blue-500">
+                        <div id="search-results" class="space-y-2">
+                            ${getSearchCardsHTML(allInstruments)}
+                        </div>
+                    </div>`;
+            }
+
+            function getSearchCardsHTML(instruments) {
+                if(instruments.length === 0) return '<div class="text-center py-10 text-gray-400 text-xs">No instruments found.</div>';
+                return instruments.map(inst => {
+                    const isFollowed = watchlist.some(w => w.code === inst.symbol);
+                    return `
+                    <div class="bg-[#1e293b] p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+                        <div><h3 class="font-semibold text-xs">${inst.name}</h3><p class="text-[10px] text-gray-400 font-mono mt-0.5">${inst.symbol} &bull; ${inst.bse} &bull; ${inst.isin}</p></div>
+                        <button onclick="toggleWatch('${inst.name}', 'NSE', '${inst.symbol}')" class="${isFollowed?'bg-emerald-600':'bg-blue-600'} text-white px-3 py-1.5 rounded-lg text-xs font-semibold">${isFollowed ? '✓ Following' : '+ Follow'}</button>
+                    </div>`;
+                }).join('');
             }
 
             function performSearch(query) {
                 const q = query.toLowerCase();
                 let filtered = allInstruments.filter(i => i.name.toLowerCase().includes(q) || i.symbol.toLowerCase().includes(q) || i.bse.includes(q) || i.isin.toLowerCase().includes(q));
-                
-                renderSearchView(filtered, query);
-                const inputEl = document.getElementById('searchInput');
-                if(inputEl) {
-                    inputEl.focus();
+                const resultsContainer = document.getElementById('search-results');
+                if(resultsContainer) {
+                    resultsContainer.innerHTML = getSearchCardsHTML(filtered);
                 }
             }
 
@@ -283,7 +392,14 @@ def mini_app_home():
                     watchlist = watchlist.filter(i => i.code !== code);
                 }
                 localStorage.setItem('finpulse_watchlist', JSON.stringify(watchlist));
-                renderContent();
+                
+                if(currentTab === 'results') {
+                    renderResultsView();
+                } else if(currentTab === 'search') {
+                    const inputEl = document.getElementById('searchInput');
+                    const q = inputEl ? inputEl.value : "";
+                    performSearch(q);
+                }
             }
 
             function removeFromWatchlist(code) {
@@ -295,6 +411,16 @@ def mini_app_home():
             function updateSetting(key, value) {
                 settingsState[key] = value;
                 localStorage.setItem('finpulse_settings', JSON.stringify(settingsState));
+                
+                fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        all_announcements: settingsState.allAnnouncements,
+                        auto_add: settingsState.autoAdd
+                    })
+                }).catch(err => console.error(err));
             }
 
             renderContent();
@@ -317,7 +443,7 @@ def send_webapp_button(chat_id):
     url = f"{TELEGRAM_API_URL}/sendMessage"
     payload = {
         "chat_id": chat_id,
-        "text": "🚀 **FinPulse Pro अपडेट हो गया है!**\n\nअब कैलेंडर का `ert{}` बग ठीक कर दिया गया है और KEI जैसे सभी स्टॉक्स सही से सर्च में आएंगे। ओपन करने के लिए नीचे दिए गए बटन पर क्लिक करें:",
+        "text": "🚀 **FinPulse Pro अपडेट हो गया है!**\n\nअब कैलेंडर में अक्टूबर, नवंबर और पूरे साल के हाईलाइटेड डेट्स और मंथ नेविगेशन पूरी तरह जुड़ चुके हैं। ओपन करने के लिए नीचे दिए गए बटन पर क्लिक करें:",
         "parse_mode": "Markdown",
         "reply_markup": {
             "inline_keyboard": [

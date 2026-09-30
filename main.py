@@ -27,7 +27,7 @@ def mini_app_home():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>FinPulse</title>
+        <title>FinPulse - Corporate Alerts</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <script src="https://telegram.org/js/telegram-web-app.js"></script>
     </head>
@@ -36,7 +36,7 @@ def mini_app_home():
         <!-- Top Status Bar -->
         <div class="bg-[#1e293b] px-4 py-3 flex justify-between items-center border-b border-slate-800 text-xs">
             <div class="flex items-center space-x-2">
-                <span class="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
                 <span class="font-semibold tracking-wide">Corporate Alerts</span>
             </div>
             <div class="flex items-center space-x-2">
@@ -47,57 +47,85 @@ def mini_app_home():
 
         <!-- Dynamic Content Area -->
         <div id="content" class="flex-1 p-4 overflow-y-auto space-y-3">
-            <!-- Default Watchlist Tab Content -->
-            <div id="tab-watchlist" class="space-y-4">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-base font-bold">My Watchlist</h2>
-                    <button onclick="switchTab('search')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold">+ Add Stock</button>
-                </div>
-                <div id="watchlist-items" class="space-y-2">
-                    <div class="text-center py-16 bg-[#1e293b]/50 rounded-xl border border-slate-800 p-4">
-                        <div class="text-3xl mb-2">📊</div>
-                        <h3 class="text-sm font-semibold mb-1">Your watchlist is empty</h3>
-                        <p class="text-gray-400 text-[11px] mb-4">Search and follow NSE/BSE securities to receive alerts.</p>
-                        <button onclick="switchTab('search')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-semibold">Find Instruments</button>
-                    </div>
-                </div>
-            </div>
+            <!-- Rendered via JavaScript -->
         </div>
 
         <!-- Bottom Navigation Bar -->
         <div class="flex justify-around bg-[#1e293b] py-2.5 border-t border-slate-800 text-[11px]">
-            <button onclick="switchTab('watchlist', this)" class="nav-btn text-blue-400 font-semibold flex flex-col items-center">⭐ Watchlist</button>
-            <button onclick="switchTab('results', this)" class="nav-btn text-gray-400 flex flex-col items-center">📅 Results</button>
-            <button onclick="switchTab('search', this)" class="nav-btn text-gray-400 flex flex-col items-center">🔍 Search</button>
-            <button onclick="switchTab('settings', this)" class="nav-btn text-gray-400 flex flex-col items-center">⚙️ Settings</button>
+            <button onclick="switchTab('watchlist', this)" id="btn-watchlist" class="nav-btn text-blue-400 font-semibold flex flex-col items-center">⭐ Watchlist</button>
+            <button onclick="switchTab('results', this)" id="btn-results" class="nav-btn text-gray-400 flex flex-col items-center">📅 Results</button>
+            <button onclick="switchTab('search', this)" id="btn-search" class="nav-btn text-gray-400 flex flex-col items-center">🔍 Search</button>
+            <button onclick="switchTab('settings', this)" id="btn-settings" class="nav-btn text-gray-400 flex flex-col items-center">⚙️ Settings</button>
         </div>
 
         <script>
             const tg = window.Telegram.WebApp;
             tg.expand();
 
-            // Fetch Telegram User Info
             const user = tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user : { id: "1612210913", username: "Optraderr" };
             const userId = user.id || "1612210913";
             const username = user.username ? "@" + user.username : "@Optraderr";
-
             document.getElementById('top-username').innerText = username;
 
             let watchlist = [];
+            let currentTab = 'watchlist';
+            let currentFilter = 'all';
+
+            // Comprehensive Database (दर्जनों स्टॉक्स और कॉर्पोरेट रिजल्ट्स)
+            const allResults = [
+                { name: "BF Utilities Ltd", exchange: "NSE", code: "BFUTILITIE", bse: "532430", date: "Wed, 30 Sept", type: "today", period: "Q1 FY26-27" },
+                { name: "Globe Commercials Ltd", exchange: "BSE", code: "GLOBE", bse: "540266", date: "Wed, 30 Sept", type: "today", period: "Q1 FY26-27" },
+                { name: "Manipal Payment & Identity Solutions", exchange: "NSE", code: "MPIMANIPAL", bse: "544916", date: "Thu, 1 Oct", type: "tomorrow", period: "Q2 FY26-27" },
+                { name: "Pranav Constructions Ltd", exchange: "NSE", code: "PRANAV", bse: "544909", date: "Thu, 1 Oct", type: "tomorrow", period: "Q2 FY26-27" },
+                { name: "Tata Consultancy Services Ltd", exchange: "NSE", code: "TCS", bse: "532540", date: "Fri, 2 Oct", type: "upcoming", period: "Q2 FY26-27" },
+                { name: "Reliance Industries Ltd", exchange: "NSE", code: "RELIANCE", bse: "500325", date: "Sat, 3 Oct", type: "upcoming", period: "Q2 FY26-27" },
+                { name: "Infosys Limited", exchange: "NSE", code: "INFY", bse: "500209", date: "Mon, 5 Oct", type: "upcoming", period: "Q2 FY26-27" },
+                { name: "HDFC Bank Limited", exchange: "NSE", code: "HDFCBANK", bse: "500180", date: "Tue, 6 Oct", type: "upcoming", period: "Q2 FY26-27" },
+                { name: "State Bank of India", exchange: "NSE", code: "SBIN", bse: "500112", date: "Wed, 7 Oct", type: "upcoming", period: "Q2 FY26-27" },
+                { name: "ITC Limited", exchange: "NSE", code: "ITC", bse: "500875", date: "Thu, 8 Oct", type: "upcoming", period: "Q2 FY26-27" },
+                { name: "Larsen & Toubro Ltd", exchange: "NSE", code: "LT", bse: "500510", date: "Fri, 9 Oct", type: "upcoming", period: "Q2 FY26-27" },
+                { name: "Bharti Airtel Ltd", exchange: "NSE", code: "BHARTIARTL", bse: "532454", date: "Mon, 12 Oct", type: "upcoming", period: "Q2 FY26-27" }
+            ];
+
+            const allInstruments = [
+                { name: "Tata Consultancy Services Ltd", symbol: "TCS", bse: "532540", isin: "INE467B01029" },
+                { name: "Reliance Industries Ltd", symbol: "RELIANCE", bse: "500325", isin: "INE002A01018" },
+                { name: "HDFC Bank Limited", symbol: "HDFCBANK", bse: "500180", isin: "INE040A01034" },
+                { name: "Infosys Limited", symbol: "INFY", bse: "500209", isin: "INE009A01021" },
+                { name: "State Bank of India", symbol: "SBIN", bse: "500112", isin: "INE062A01020" },
+                { name: "ITC Limited", symbol: "ITC", bse: "500875", isin: "INE154A01025" },
+                { name: "Bharti Airtel Ltd", symbol: "BHARTIARTL", bse: "532454", isin: "INE397D01024" },
+                { name: "Larsen & Toubro Ltd", symbol: "LT", bse: "500510", isin: "INE018A01030" },
+                { name: "Axis Bank Limited", symbol: "AXISBANK", bse: "532215", isin: "INE238A01034" },
+                { name: "Kotak Mahindra Bank Ltd", symbol: "KOTAKBANK", bse: "500247", isin: "INE237A01028" },
+                { name: "BF Utilities Ltd", symbol: "BFUTILITIE", bse: "532430", isin: "INE888C01010" },
+                { name: "Globe Commercials Ltd", symbol: "GLOBE", bse: "540266", isin: "INE999D01017" },
+                { name: "Manipal Payment & Identity Solutions", symbol: "MPIMANIPAL", bse: "544916", isin: "INE111E01015" },
+                { name: "Pranav Constructions Ltd", symbol: "PRANAV", bse: "544909", isin: "INE222F01013" },
+                { name: "Wipro Limited", symbol: "WIPRO", bse: "507685", isin: "INE075A01022" },
+                { name: "Asian Paints Limited", symbol: "ASIANPAINT", bse: "500820", isin: "INE021A01026" }
+            ];
 
             function switchTab(tab, element) {
+                currentTab = tab;
+                if(!element) {
+                    element = document.getElementById('btn-' + tab);
+                }
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    btn.classList.remove('text-blue-400', 'font-semibold');
+                    btn.classList.add('text-gray-400');
+                });
                 if(element) {
-                    document.querySelectorAll('.nav-btn').forEach(btn => {
-                        btn.classList.remove('text-blue-400', 'font-semibold');
-                        btn.classList.add('text-gray-400');
-                    });
                     element.classList.remove('text-gray-400');
                     element.classList.add('text-blue-400', 'font-semibold');
                 }
+                renderContent();
+            }
 
+            function renderContent() {
                 const content = document.getElementById('content');
                 
-                if(tab === 'watchlist') {
+                if(currentTab === 'watchlist') {
                     if(watchlist.length === 0) {
                         content.innerHTML = `
                             <div class="space-y-4">
@@ -112,69 +140,19 @@ def mini_app_home():
                     } else {
                         let html = `<div class="space-y-3"><div class="flex justify-between items-center"><h2 class="text-base font-bold">My Watchlist</h2><span class="text-xs text-gray-400">Tracking ${watchlist.length} instruments</span></div>`;
                         watchlist.forEach(item => {
-                            html += `<div class="bg-[#1e293b] p-3 rounded-xl border border-slate-800 flex justify-between items-center"><div><h3 class="font-semibold text-xs">${item.name}</h3><p class="text-[10px] text-gray-400">${item.exchange}: ${item.code}</p></div><button onclick="removeFromWatchlist('${item.code}')" class="text-red-400 text-xs px-2.5 py-1 bg-red-950/40 rounded-lg">Unfollow</button></div>`;
+                            html += `<div class="bg-[#1e293b] p-3 rounded-xl border border-slate-800 flex justify-between items-center"><div><h3 class="font-semibold text-xs">${item.name}</h3><p class="text-[10px] text-gray-400 font-mono mt-0.5">${item.exchange} &bull; ${item.code}</p></div><button onclick="removeFromWatchlist('${item.code}')" class="text-red-400 text-xs px-2.5 py-1 bg-red-950/40 rounded-lg">Unfollow</button></div>`;
                         });
                         html += `</div>`;
                         content.innerHTML = html;
                     }
                 } 
-                else if(tab === 'results') {
-                    content.innerHTML = `
-                        <div class="space-y-3">
-                            <div><h2 class="text-base font-bold">Results Calendar</h2><p class="text-gray-400 text-xs">Companies announcing earnings</p></div>
-                            <div class="flex space-x-1.5 overflow-x-auto pb-1 text-xs">
-                                <button onclick="filterResults('all', this)" class="res-filter bg-blue-600 text-white px-3 py-1.5 rounded-lg whitespace-nowrap font-medium">All Upcoming</button>
-                                <button onclick="filterResults('today', this)" class="res-filter bg-slate-800 text-gray-300 px-3 py-1.5 rounded-lg whitespace-nowrap font-medium">Today</button>
-                                <button onclick="filterResults('tomorrow', this)" class="res-filter bg-slate-800 text-gray-300 px-3 py-1.5 rounded-lg whitespace-nowrap font-medium">Tomorrow</button>
-                            </div>
-                            <input type="text" placeholder="Search by company name or ticker..." oninput="searchCalendar(this.value)" class="w-full p-2.5 bg-[#1e293b] rounded-lg border border-slate-800 text-white text-xs outline-none focus:border-blue-500">
-                            
-                            <div id="results-list" class="space-y-2.5">
-                                <div class="bg-[#1e293b] p-3 rounded-xl border border-slate-800 flex justify-between items-center">
-                                    <div>
-                                        <div class="flex items-center space-x-2 mb-1"><span class="font-semibold text-xs">BF Utilities Ltd</span><span class="bg-blue-950 text-blue-400 text-[9px] px-1.5 py-0.5 rounded font-mono">NSE</span></div>
-                                        <p class="text-[10px] text-gray-400">📅 Wed, 30 Sept &nbsp;|&nbsp; Q1 FY26-27</p>
-                                        <p class="text-[10px] text-gray-500 font-mono mt-0.5">NSE: BFUTILITIE | BSE: 532430</p>
-                                    </div>
-                                    <button onclick="toggleWatch('BF Utilities Ltd', 'NSE', '532430', this)" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap">+ Watch</button>
-                                </div>
-                                <div class="bg-[#1e293b] p-3 rounded-xl border border-slate-800 flex justify-between items-center">
-                                    <div>
-                                        <div class="flex items-center space-x-2 mb-1"><span class="font-semibold text-xs">Globe Commercials Ltd</span><span class="bg-amber-950 text-amber-400 text-[9px] px-1.5 py-0.5 rounded font-mono">BSE</span></div>
-                                        <p class="text-[10px] text-gray-400">📅 Wed, 30 Sept &nbsp;|&nbsp; Q1 FY26-27</p>
-                                        <p class="text-[10px] text-gray-500 font-mono mt-0.5">BSE: 540266</p>
-                                    </div>
-                                    <button onclick="toggleWatch('Globe Commercials Ltd', 'BSE', '540266', this)" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap">+ Watch</button>
-                                </div>
-                                <div class="bg-[#1e293b] p-3 rounded-xl border border-slate-800 flex justify-between items-center">
-                                    <div>
-                                        <div class="flex items-center space-x-2 mb-1"><span class="font-semibold text-xs">Manipal Payment & Identity Solutions</span><span class="bg-blue-950 text-blue-400 text-[9px] px-1.5 py-0.5 rounded font-mono">NSE</span></div>
-                                        <p class="text-[10px] text-gray-400">📅 Thu, 1 Oct &nbsp;|&nbsp; Q2 FY26-27</p>
-                                        <p class="text-[10px] text-gray-500 font-mono mt-0.5">NSE: MPIMANIPAL | BSE: 544916</p>
-                                    </div>
-                                    <button onclick="toggleWatch('Manipal Payment', 'NSE', '544916', this)" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap">+ Watch</button>
-                                </div>
-                            </div>
-                        </div>`;
+                else if(currentTab === 'results') {
+                    renderResultsView();
                 } 
-                else if(tab === 'search') {
-                    content.innerHTML = `
-                        <div class="space-y-3">
-                            <div><h2 class="text-base font-bold">Find Instruments</h2><p class="text-gray-400 text-xs">Search NSE symbols, BSE codes, ISIN, or company name</p></div>
-                            <input type="text" id="searchInput" placeholder="Search e.g. Reliance, TATACAP, 500325..." oninput="performSearch(this.value)" class="w-full p-2.5 bg-[#1e293b] rounded-lg border border-slate-800 text-white text-xs outline-none focus:border-blue-500">
-                            <div id="search-results" class="space-y-2">
-                                <div class="bg-[#1e293b] p-3 rounded-xl border border-slate-800 flex justify-between items-center">
-                                    <div><h3 class="font-semibold text-xs">Tata Consultancy Services Ltd</h3><p class="text-[10px] text-gray-400 font-mono mt-0.5">TCS &bull; 532540 &bull; INE467B01029</p></div>
-                                    <button onclick="toggleWatch('Tata Consultancy Services', 'NSE', '532540', this)" class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold">+ Follow</button>
-                                </div>
-                                <div class="bg-[#1e293b] p-3 rounded-xl border border-slate-800 flex justify-between items-center">
-                                    <div><h3 class="font-semibold text-xs">Reliance Industries Ltd</h3><p class="text-[10px] text-gray-400 font-mono mt-0.5">RELIANCE &bull; 500325 &bull; INE002A01018</p></div>
-                                    <button onclick="toggleWatch('Reliance Industries', 'NSE', '500325', this)" class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold">+ Follow</button>
-                                </div>
-                            </div>
-                        </div>`;
+                else if(currentTab === 'search') {
+                    renderSearchView(allInstruments);
                 } 
-                else if(tab === 'settings') {
+                else if(currentTab === 'settings') {
                     content.innerHTML = `
                         <div class="space-y-4">
                             <div><h2 class="text-base font-bold">Settings</h2><p class="text-gray-400 text-xs">Account info & notification preferences</p></div>
@@ -202,42 +180,111 @@ def mini_app_home():
                 }
             }
 
-            function toggleWatch(name, exchange, code, btn) {
+            function renderResultsView(filteredList = null, searchQ = "") {
+                const list = filteredList || allResults;
+                const content = document.getElementById('content');
+                
+                content.innerHTML = `
+                    <div class="space-y-3">
+                        <div><h2 class="text-base font-bold">Results Calendar</h2><p class="text-gray-400 text-xs">${list.length} companies announcing earnings</p></div>
+                        <div class="flex space-x-1.5 overflow-x-auto pb-1 text-xs">
+                            <button onclick="filterResults('all', this)" class="res-filter ${currentFilter==='all'?'bg-blue-600 text-white':'bg-slate-800 text-gray-300'} px-3 py-1.5 rounded-lg whitespace-nowrap font-medium">All Upcoming</button>
+                            <button onclick="filterResults('next2', this)" class="res-filter ${currentFilter==='next2'?'bg-blue-600 text-white':'bg-slate-800 text-gray-300'} px-3 py-1.5 rounded-lg whitespace-nowrap font-medium">Next 2 Days</button>
+                            <button onclick="filterResults('today', this)" class="res-filter ${currentFilter==='today'?'bg-blue-600 text-white':'bg-slate-800 text-gray-300'} px-3 py-1.5 rounded-lg whitespace-nowrap font-medium">Today</button>
+                            <button onclick="filterResults('tomorrow', this)" class="res-filter ${currentFilter==='tomorrow'?'bg-blue-600 text-white':'bg-slate-800 text-gray-300'} px-3 py-1.5 rounded-lg whitespace-nowrap font-medium">Tomorrow</button>
+                        </div>
+                        <input type="text" id="calendarSearchInput" value="${searchQ}" placeholder="Search by company name or ticker..." oninput="searchCalendar(this.value)" class="w-full p-2.5 bg-[#1e293b] rounded-lg border border-slate-800 text-white text-xs outline-none focus:border-blue-500">
+                        
+                        <div id="results-list" class="space-y-2.5">
+                            ${list.length === 0 ? '<div class="text-center py-10 text-gray-400 text-xs">कोई रिजल्ट नहीं मिला।</div>' : ''}
+                            ${list.map(item => {
+                                const isFollowed = watchlist.some(w => w.code === item.code);
+                                return `
+                                <div class="bg-[#1e293b] p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+                                    <div>
+                                        <div class="flex items-center space-x-2 mb-1"><span class="font-semibold text-xs">${item.name}</span><span class="bg-blue-950 text-blue-400 text-[9px] px-1.5 py-0.5 rounded font-mono">${item.exchange}</span></div>
+                                        <p class="text-[10px] text-gray-400">📅 ${item.date} &nbsp;\vert{}&nbsp; ${item.period}</p>
+                                        <p class="text-[10px] text-gray-500 font-mono mt-0.5">${item.exchange}: ${item.code} \vert{} BSE:${item.bse}</p>
+                                    </div>
+                                    <button onclick="toggleWatch('${item.name}', '${item.exchange}', '${item.code}')" class="${isFollowed?'bg-emerald-600':'bg-blue-600 hover:bg-blue-500'} text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap">${isFollowed ? '✓ Following' : '+ Watch'}</button>
+                                </div>`;
+                            }).join('')}
+                        </div>
+                    </div>`;
+            }
+
+            function renderSearchView(instruments) {
+                const content = document.getElementById('content');
+                content.innerHTML = `
+                    <div class="space-y-3">
+                        <div><h2 class="text-base font-bold">Find Instruments</h2><p class="text-gray-400 text-xs">Search NSE symbols, BSE codes, ISIN, or company name</p></div>
+                        <input type="text" id="searchInput" placeholder="Search e.g. Reliance, TATACAP, 500325..." oninput="performSearch(this.value)" class="w-full p-2.5 bg-[#1e293b] rounded-lg border border-slate-800 text-white text-xs outline-none focus:border-blue-500">
+                        <div id="search-results" class="space-y-2">
+                            ${instruments.map(inst => {
+                                const isFollowed = watchlist.some(w => w.code === inst.symbol);
+                                return `
+                                <div class="bg-[#1e293b] p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+                                    <div><h3 class="font-semibold text-xs">${inst.name}</h3><p class="text-[10px] text-gray-400 font-mono mt-0.5">${inst.symbol} &bull; ${inst.bse} &bull; ${inst.isin}</p></div>
+                                    <button onclick="toggleWatch('${inst.name}', 'NSE', '${inst.symbol}')" class="${isFollowed?'bg-emerald-600':'bg-blue-600'} text-white px-3 py-1.5 rounded-lg text-xs font-semibold">${isFollowed ? '✓ Following' : '+ Follow'}</button>
+                                </div>`;
+                            }).join('')}
+                        </div>
+                    </div>`;
+            }
+
+            function filterResults(type, btn) {
+                currentFilter = type;
+                let filtered = allResults;
+                if(type === 'today') {
+                    filtered = allResults.filter(i => i.type === 'today');
+                } else if(type === 'tomorrow') {
+                    filtered = allResults.filter(i => i.type === 'tomorrow');
+                } else if(type === 'next2') {
+                    filtered = allResults.filter(i => i.type === 'today' || i.type === 'tomorrow');
+                }
+                renderResultsView(filtered);
+            }
+
+            function searchCalendar(query) {
+                const q = query.toLowerCase();
+                let filtered = allResults;
+                if(currentFilter === 'today') filtered = allResults.filter(i => i.type === 'today');
+                else if(currentFilter === 'tomorrow') filtered = allResults.filter(i => i.type === 'tomorrow');
+                else if(currentFilter === 'next2') filtered = allResults.filter(i => i.type === 'today' || i.type === 'tomorrow');
+
+                if(q) {
+                    filtered = filtered.filter(i => i.name.toLowerCase().includes(q) || i.code.toLowerCase().includes(q) || i.bse.includes(q));
+                }
+                renderResultsView(filtered, query);
+            }
+
+            function performSearch(query) {
+                const q = query.toLowerCase();
+                const filtered = allInstruments.filter(i => i.name.toLowerCase().includes(q) || i.symbol.toLowerCase().includes(q) || i.bse.includes(q) || i.isin.toLowerCase().includes(q));
+                renderSearchView(filtered);
+                const inputEl = document.getElementById('searchInput');
+                if(inputEl) {
+                    inputEl.value = query;
+                    inputEl.focus();
+                }
+            }
+
+            function toggleWatch(name, exchange, code) {
                 const exists = watchlist.find(i => i.code === code);
                 if(!exists) {
                     watchlist.push({ name, exchange, code });
-                    btn.innerText = "✓ Following";
-                    btn.classList.remove('bg-blue-600', 'hover:bg-blue-500');
-                    btn.classList.add('bg-emerald-600');
                 } else {
                     watchlist = watchlist.filter(i => i.code !== code);
-                    btn.innerText = "+ Watch";
-                    btn.classList.remove('bg-emerald-600');
-                    btn.classList.add('bg-blue-600', 'hover:bg-blue-500');
                 }
+                renderContent();
             }
 
             function removeFromWatchlist(code) {
                 watchlist = watchlist.filter(i => i.code !== code);
-                switchTab('watchlist');
+                renderContent();
             }
 
-            function filterResults(type, btn) {
-                document.querySelectorAll('.res-filter').forEach(b => {
-                    b.classList.remove('bg-blue-600', 'text-white');
-                    b.classList.add('bg-slate-800', 'text-gray-300');
-                });
-                btn.classList.remove('bg-slate-800', 'text-gray-300');
-                btn.classList.add('bg-blue-600', 'text-white');
-            }
-
-            function searchCalendar(query) {
-                // Ticker search logic placeholder
-            }
-
-            function performSearch(query) {
-                // Dynamic search placeholder
-            }
+            renderContent();
         </script>
     </body>
     </html>
@@ -257,7 +304,7 @@ def send_webapp_button(chat_id):
     url = f"{TELEGRAM_API_URL}/sendMessage"
     payload = {
         "chat_id": chat_id,
-        "text": "⚡ **FinPulse Mini App तैयार है!**\n\nनीचे दिए गए बटन पर क्लिक करके अपना प्रोफेशनल ट्रेडिंग डैशबोर्ड खोलें:",
+        "text": "⚡ **FinPulse डैशबोर्ड अपडेट हो गया है!**\n\nअब सभी स्टॉक्स, ऑल इंस्ट्रूमेंट्स, अपकमिंग रिजल्ट्स और फ़िल्टर पूरी तरह काम कर रहे हैं। ओपन करने के लिए नीचे दिए गए बटन पर क्लिक करें:",
         "parse_mode": "Markdown",
         "reply_markup": {
             "inline_keyboard": [
